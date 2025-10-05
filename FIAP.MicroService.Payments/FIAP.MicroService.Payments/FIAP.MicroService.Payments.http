@@ -1,0 +1,6 @@
+@FIAP.MicroService.Payments_HostAddress = http://localhost:5190
+
+GET {{FIAP.MicroService.Payments_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
