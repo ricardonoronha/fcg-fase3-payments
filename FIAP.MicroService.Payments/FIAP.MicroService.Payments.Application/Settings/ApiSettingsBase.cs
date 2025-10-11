@@ -22,6 +22,5 @@ public class GameApiSettings : ApiSettingsBase
 public sealed class ServiceBusSettings
 {
     public required string ConnectionString { get; init; }
-    public string? EmailsQueue { get; init; }
-    public string? CheckoutFinishedTopic { get; init; }
+    public string? Topic { get; init; }
 }

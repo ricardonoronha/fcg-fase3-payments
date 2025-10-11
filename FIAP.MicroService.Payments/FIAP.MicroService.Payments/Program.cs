@@ -51,6 +51,14 @@ builder
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder
+    .Services
+    .AddOptions<ServiceBusSettings>()
+    .BindConfiguration(nameof(ServiceBusSettings))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+
 builder.Services.AddHttpClient<IGameApiService, GameApiService>((sp, client) => {
     var settings = sp.GetRequiredService<IOptions<GameApiSettings>>().Value;
     client.BaseAddress = new Uri(settings.BaseUrl);
