@@ -1,8 +1,21 @@
+using FIAP.MicroService.Payments.Application.Services;
+using FIAP.MicroService.Payments.Application.Settings;
+using FIAP.MicroService.Payments.Data;
+using FIAP.MicroService.Payments.Data.Repositories;
+using FIAP.MicroService.Payments.Domain.Repositories;
+using FIAP.MicroService.Payments.Domain.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrEmpty(connectionString))
+    throw new InvalidOperationException("A string de conexão não foi encontrada!");
+
+builder.Services.AddDbContext<PaymentsDbContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddControllers();
 
@@ -20,6 +33,36 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
+
+builder.Services.AddScoped<ICheckoutRepository, CheckoutRepository>();
+builder.Services.AddScoped<ICheckoutService, CheckoutService>();
+
+builder
+    .Services
+    .AddOptions<GameApiSettings>()
+    .BindConfiguration(nameof(GameApiSettings))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder
+    .Services
+    .AddOptions<UserApiSettings>()
+    .BindConfiguration(nameof(UserApiSettings))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddHttpClient<IGameApiService, GameApiService>((sp, client) => {
+    var settings = sp.GetRequiredService<IOptions<GameApiSettings>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl);
+});
+
+builder.Services.AddHttpClient<IUserApiService, UserApiService>((sp, client) => {
+    var settings = sp.GetRequiredService<IOptions<UserApiSettings>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl);
+});
+
+
+
 
 var app = builder.Build();
 

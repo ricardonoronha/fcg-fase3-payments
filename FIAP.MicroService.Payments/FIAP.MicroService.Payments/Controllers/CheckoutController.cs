@@ -1,15 +1,19 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿
+using FIAP.MicroService.Payments.Domain.Dtos;
+using FIAP.MicroService.Payments.Domain.Services;
+using Microsoft.AspNetCore.Mvc;
 
-namespace FIAP.MicroService.Payments.Controllers;
+namespace FIAP.MicroService.Payments.API.Controllers;
 
 [ApiController]
 [Route("api/checkout")]
 public class CheckoutController(
     ILogger<CheckoutController> logger,
-    LinkGenerator linkGenerator) : ControllerBase
+    LinkGenerator linkGenerator,
+    ICheckoutService checkoutService) : ControllerBase
 {
     [HttpPost(Name = nameof(StartCheckout))]
-    public ActionResult<StartCheckoutResponse> StartCheckout([FromBody] StartCheckoutRequest request)
+    public async Task<ActionResult<StartCheckoutResponse>> StartCheckout([FromBody] StartCheckoutRequest request, CancellationToken ct)
     {
         if (!StartCheckoutRequest.IsValid(request, out var message))
             return BadRequest(new { Message = message });
@@ -20,32 +24,22 @@ public class CheckoutController(
             ["GameId"] = request.GameId
         });
 
-        // 🔹 Gera o ID do checkout (normalmente salvo no banco)
-        var checkoutId = Guid.NewGuid();
+        var response = await checkoutService.StartCheckout(request, ct);
 
         // 🔹 Gera o link absoluto respeitando X-Forwarded-* e PathBase
         var statusUrl = linkGenerator.GetUriByAction(
             httpContext: HttpContext,
             action: nameof(GetCheckout),
             controller: "Checkout",
-            values: new { checkoutId });
-
+            values: new { response.CheckoutId });
 
         logger.LogInformation("Checkout criado com sucesso");
 
-        // 🔹 Retorna 202 Accepted com Location e corpo de status
-        return Accepted(statusUrl, new
-        {
-            checkoutId,
-            message = "Checkout aceito e será processado.",
-            statusUrl
-        });
-
-
+        return Accepted(statusUrl, response);
     }
 
     [HttpGet("{checkoutId:guid}", Name = nameof(GetCheckout))]
-    public ActionResult<StartCheckoutResponse> GetCheckout(Guid checkoutId)
+    public ActionResult<GetCheckoutResponse> GetCheckout(Guid checkoutId)
     {
         if (checkoutId == Guid.Empty)
             return BadRequest();
@@ -92,71 +86,5 @@ public class CheckoutController(
 
 
     }
-}
-
-public class StartCheckoutRequest
-{
-    public Guid UserId { get; set; }
-    public Guid GameId { get; set; }
-
-    public static bool IsValid(StartCheckoutRequest request, out string message)
-    {
-        if (request is null || request.UserId == Guid.Empty || request.GameId == Guid.Empty)
-        {
-            message = $"{nameof(UserId)} e {nameof(GameId)} são obrigatórios.";
-            return false;
-        }
-
-        message = string.Empty;
-        return true;
-    }
-}
-public class StartCheckoutResponse
-{
-    public Guid CheckoutId { get; set; }
-    public UserInfo User { get; set; } = default!;
-    public GameInfo Game { get; set; } = default!;
-    public decimal Total { get; set; }
-    public string[] PaymentMethods { get; set; } = [];
-}
-
-public class FinishCheckoutRequest
-{
-    public Guid CheckoutId { get; set; }
-    public string PaymentMethod { get; set; } = default!;
-
-    public static bool IsValid(FinishCheckoutRequest request, out string message)
-    {
-        if (request is null || request.CheckoutId == Guid.Empty || string.IsNullOrEmpty(request.PaymentMethod))
-        {
-            message = $"{nameof(CheckoutId)} e {nameof(PaymentMethod)} são obrigatórios.";
-            return false;
-        }
-
-        message = string.Empty;
-        return true;
-    }
-}
-
-public class FinishCheckoutResponse
-{
-    public Guid CheckoutId { get; set; }
-    public Guid UserId { get; set; }
-    public Guid GameId { get; set; }
-
-}
-
-
-public class UserInfo
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-}
-
-public class GameInfo
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
 }
 

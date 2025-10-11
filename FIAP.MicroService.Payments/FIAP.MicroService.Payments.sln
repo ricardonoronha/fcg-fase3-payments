@@ -1,9 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36127.28 d17.14
+VisualStudioVersion = 17.14.36127.28
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIAP.MicroService.Payments", "FIAP.MicroService.Payments\FIAP.MicroService.Payments.csproj", "{A14BB171-A663-419A-8139-98F868204ED6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIAP.MicroService.Payments.API", "FIAP.MicroService.Payments\FIAP.MicroService.Payments.API.csproj", "{A14BB171-A663-419A-8139-98F868204ED6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIAP.MicroService.Payments.Application", "FIAP.MicroService.Payments.Application\FIAP.MicroService.Payments.Application.csproj", "{98DEB597-F306-4C67-BCE9-D47ED4EA513F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIAP.MicroService.Payments.Domain", "FIAP.MicroService.Payments.Domain\FIAP.MicroService.Payments.Domain.csproj", "{95178EDD-F35A-41AC-9FD1-9DC3C432A401}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FIAP.MicroService.Payments.Data", "FIAP.MicroService.Payments.Data\FIAP.MicroService.Payments.Data.csproj", "{21BA0348-44F1-4829-9F9D-6EFA02E03658}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +21,18 @@ Global
 		{A14BB171-A663-419A-8139-98F868204ED6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A14BB171-A663-419A-8139-98F868204ED6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A14BB171-A663-419A-8139-98F868204ED6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98DEB597-F306-4C67-BCE9-D47ED4EA513F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98DEB597-F306-4C67-BCE9-D47ED4EA513F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98DEB597-F306-4C67-BCE9-D47ED4EA513F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98DEB597-F306-4C67-BCE9-D47ED4EA513F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95178EDD-F35A-41AC-9FD1-9DC3C432A401}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95178EDD-F35A-41AC-9FD1-9DC3C432A401}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95178EDD-F35A-41AC-9FD1-9DC3C432A401}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95178EDD-F35A-41AC-9FD1-9DC3C432A401}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21BA0348-44F1-4829-9F9D-6EFA02E03658}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21BA0348-44F1-4829-9F9D-6EFA02E03658}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21BA0348-44F1-4829-9F9D-6EFA02E03658}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21BA0348-44F1-4829-9F9D-6EFA02E03658}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

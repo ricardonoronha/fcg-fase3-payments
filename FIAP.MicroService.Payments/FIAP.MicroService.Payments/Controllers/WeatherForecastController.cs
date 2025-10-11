@@ -1,9 +1,11 @@
+
+using FIAP.MicroService.Payments.Domain.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FIAP.MicroService.Payments.Controllers
+namespace FIAP.MicroService.Payments.API.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("weather-forecast")]
     public class WeatherForecastController : ControllerBase
     {
         private static readonly string[] Summaries = new[]
