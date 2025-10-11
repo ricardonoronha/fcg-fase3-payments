@@ -39,18 +39,20 @@ public class CheckoutController(
     }
 
     [HttpGet("{checkoutId:guid}", Name = nameof(GetCheckout))]
-    public ActionResult<GetCheckoutResponse> GetCheckout(Guid checkoutId)
+    public async Task< ActionResult<GetCheckoutResponse>> GetCheckout(Guid checkoutId , CancellationToken cancellationToken)
     {
         if (checkoutId == Guid.Empty)
             return BadRequest();
 
-        return Ok(new StartCheckoutResponse());
+        var result = await checkoutService.GetCheckout(checkoutId, cancellationToken);
+
+        return Ok(result);
     }
 
 
 
     [HttpPost("finish", Name = nameof(FinishCheckout))]
-    public ActionResult<FinishCheckoutResponse> FinishCheckout([FromBody] FinishCheckoutRequest request)
+    public async Task<ActionResult<FinishCheckoutResponse>> FinishCheckout([FromBody] FinishCheckoutRequest request, CancellationToken cancellationToken)
     {
         if (!FinishCheckoutRequest.IsValid(request, out var message))
             return BadRequest(new { Message = message });
@@ -63,15 +65,14 @@ public class CheckoutController(
 
         logger.LogInformation("Finalização de checkout iniciada");
 
-        // 🔹 Gera o ID do checkout (normalmente salvo no banco)
-        var checkoutId = Guid.NewGuid();
+        var result = await checkoutService.FinishCheckout(request.CheckoutId, cancellationToken);
 
         // 🔹 Gera o link absoluto respeitando X-Forwarded-* e PathBase
         var statusUrl = linkGenerator.GetUriByAction(
             httpContext: HttpContext,
             action: nameof(GetCheckout),
             controller: "Checkout",
-            values: new { id = checkoutId });
+            values: new { id = result.CheckoutId });
 
 
         logger.LogInformation("Finalização de checkout concluída com sucesso");
@@ -79,10 +80,13 @@ public class CheckoutController(
         // 🔹 Retorna 202 Accepted com Location e corpo de status
         return Accepted(statusUrl, new
         {
-            checkoutId,
+            result.CheckoutId,
             message = "Checkout aceito e será processado.",
             statusUrl
         });
+
+
+
 
 
     }
