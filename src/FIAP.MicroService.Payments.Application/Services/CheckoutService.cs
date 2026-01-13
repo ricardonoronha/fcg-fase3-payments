@@ -9,6 +9,8 @@ using FIAP.MicroService.Payments.Domain.Repositories;
 using FIAP.MicroService.Payments.Domain.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json;
 
@@ -19,15 +21,20 @@ public class CheckoutService(
     IUserApiService userApiService,
     IGameApiService gameApiService,
     ICheckoutRepository repository,
-    IOptions<ServiceBusSettings> serviceBusSettings) : ICheckoutService
+    IOptions<ServiceBusSettings> serviceBusSettings, 
+    ConnectionFactory connectionFactory) : ICheckoutService
 {
+    private readonly ConnectionFactory _connectionFactory = connectionFactory;
+    private IConnection? _connection;
+
     public async Task<StartCheckoutResponse> StartCheckout(StartCheckoutRequest request, CancellationToken cancelamentoToken = default)
     {
-        var getGameInfo = gameApiService.GetById(request.GameId);
         var getUserInfo = userApiService.GetById(request.UserId);
-
-        await getGameInfo;
         await getUserInfo;
+
+        
+        var getGameInfo = gameApiService.GetById(request.GameId);
+        await getGameInfo;
 
 
         var gameResult = getGameInfo.Result!;
@@ -99,56 +106,80 @@ public class CheckoutService(
 
         await repository.SaveChangesAsync(cancelamentoToken);
 
-        await PublishMessageToTopic(checkout);
+        await PublishMessageToExchangeAsync(checkout, cancelamentoToken);
 
         logger.LogInformation("Checkout finished | CheckoutId {CheckoutId}", checkout.Id);
 
         return new FinishCheckoutResponse { CheckoutId = checkout.Id, UserId = checkout.UserId, GameId = checkout.GameId };
     }
 
-    public async Task PublishMessageToTopic(Checkout checkout)
+    private async Task<IConnection> GetConnectionAsync(CancellationToken ct)
     {
-        var settings = serviceBusSettings.Value;
+        if (_connection is { IsOpen: true })
+            return _connection;
 
-        // cria o client
-        await using var client = new ServiceBusClient(settings.ConnectionString);
+        _connection = await _connectionFactory.CreateConnectionAsync(ct);
+        return _connection;
+    }
 
-        // cria o sender para o tópico
-        ServiceBusSender sender = client.CreateSender(settings.Topic);
+    public async Task PublishMessageToExchangeAsync(Checkout checkout, CancellationToken ct = default)
+    {
+        // busca infos em paralelo
+        var getGameInfoTask = gameApiService.GetById(checkout.GameId);
+        var getUserInfoTask = userApiService.GetById(checkout.UserId);
 
+        await Task.WhenAll(getGameInfoTask, getUserInfoTask);
 
-        var getGameInfo = gameApiService.GetById(checkout.GameId);
-        var getUserInfo = userApiService.GetById(checkout.UserId);
+        var game = getGameInfoTask.Result;
+        var user = getUserInfoTask.Result;
 
-        await getGameInfo;
-        await getUserInfo;
-
-
-        var gameResult = getGameInfo.Result!;
-        var userResult = getUserInfo.Result!;
-
-        // cria o payload (pode ser qualquer objeto)
-        var payload = new
+        if (game is null || user is null)
         {
-            DadosCliente = new
-            {
-                Nome = userResult.Username,
-                Email = userResult.Email
-            },
-            Valor = checkout.Amount,
-            JogosComprados = new[] { gameResult.Nome }
+            logger.LogWarning(
+                "Não foi possível recuperar informações do usuário ou do jogo para o checkout | CheckoutId {CheckoutId}",
+                checkout.Id);
+            return;
+        }
+
+        var payload = new CheckoutCompletedEvent
+        {
+            TotalAmount = checkout.Amount,
+            User = user,
+            Game = game
         };
 
-        // serializa pra JSON e cria a mensagem
-        var message = new ServiceBusMessage(JsonSerializer.Serialize(payload))
+        var conn = await GetConnectionAsync(ct);
+        await using var channel = await conn.CreateChannelAsync();
+
+        // (opcional mas recomendado) garante que o exchange existe
+        await channel.ExchangeDeclareAsync(
+            exchange: "user_exchange",
+            type: ExchangeType.Fanout,
+            durable: true,
+            autoDelete: false,
+            arguments: null,
+            cancellationToken: ct);
+
+        var json = JsonSerializer.Serialize(payload);
+        var body = Encoding.UTF8.GetBytes(json);
+
+        var props = new BasicProperties
         {
-            ContentType = "application/json"
+            ContentType = "application/json",
+            Type = "CheckoutCompletedEvent",
+            DeliveryMode = DeliveryModes.Persistent
         };
 
-        // envia
-        await sender.SendMessageAsync(message);
+        await channel.BasicPublishAsync(
+            exchange: "user_exchange",
+            routingKey: "", // fanout ignora
+            mandatory: false,
+            basicProperties: props,
+            body: body,
+            cancellationToken: ct);
 
-        logger.LogInformation("Checkout enviado para processamentos assíncronos | CheckoutId {CheckoutId}", checkout.Id);
-
+        logger.LogInformation(
+            "Checkout enviado para processamentos assíncronos (RabbitMQ) | CheckoutId {CheckoutId}",
+            checkout.Id);
     }
 }

@@ -52,7 +52,7 @@ namespace FIAP.MicroService.Payments.Data.Migrations
 
                     b.HasIndex("UserId", "CreatedAt");
 
-                    b.ToTable("Checkouts");
+                    b.ToTable("Checkouts", (string)null);
                 });
 
             modelBuilder.Entity("FIAP.MicroService.Payments.Domain.Models.CheckoutEvent", b =>
@@ -81,7 +81,7 @@ namespace FIAP.MicroService.Payments.Data.Migrations
 
                     b.HasIndex("CheckoutId", "CreatedAt");
 
-                    b.ToTable("CheckoutEvents");
+                    b.ToTable("CheckoutEvents", (string)null);
                 });
 
             modelBuilder.Entity("FIAP.MicroService.Payments.Domain.Models.CheckoutEvent", b =>

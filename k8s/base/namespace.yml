@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fcg-payments
+  labels:
+    app: payments
+    env: dev

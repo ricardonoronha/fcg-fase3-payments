@@ -10,24 +10,28 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 
 WORKDIR /src
 
+RUN mkdir -p FIAP.MicroService.Payments \
+             FIAP.MicroService.Payments.Application \
+             FIAP.MicroService.Payments.Data \
+             FIAP.MicroService.Payments.Domain \
+             FIAP.MicroService.Payments.InfraEstrutura
+			 
 # Copiar apenas arquivos de projeto primeiro (melhor cache de layers)
-COPY FIAP.MicroService.Payments/*.csproj ./FIAP.MicroService.Payments/
-COPY FIAP.MicroService.Payments.Application/*.csproj ./FIAP.MicroService.Payments.Application/
-COPY FIAP.MicroService.Payments.Domain/*.csproj ./FIAP.MicroService.Payments.Domain/
-COPY FIAP.MicroService.Payments.Data/*.csproj ./FIAP.MicroService.Payments.Data/
+COPY src/FIAP.MicroService.Payments/FIAP.MicroService.Payments.API.csproj FIAP.MicroService.Payments/FIAP.MicroService.Payments.API.csproj
+COPY src/FIAP.MicroService.Payments.Application/FIAP.MicroService.Payments.Application.csproj FIAP.MicroService.Payments.Application/FIAP.MicroService.Payments.Application.csproj
+COPY src/FIAP.MicroService.Payments.Data/FIAP.MicroService.Payments.Data.csproj FIAP.MicroService.Payments.Data/FIAP.MicroService.Payments.Data.csproj
+COPY src/FIAP.MicroService.Payments.Domain/FIAP.MicroService.Payments.Domain.csproj FIAP.MicroService.Payments.Domain/FIAP.MicroService.Payments.Domain.csproj
+COPY src/FIAP.MicroService.Payments.InfraEstrutura/FIAP.MicroService.Payments.InfraEstrutura.csproj FIAP.MicroService.Payments.InfraEstrutura/FIAP.MicroService.Payments.InfraEstrutura.csproj
 
 # Restore de dependências
 RUN dotnet restore ./FIAP.MicroService.Payments/FIAP.MicroService.Payments.API.csproj
 
 # Copiar código fonte
-COPY FIAP.MicroService.Payments/ ./FIAP.MicroService.Payments/
-COPY FIAP.MicroService.Payments.Application/ ./FIAP.MicroService.Payments.Application/
-COPY FIAP.MicroService.Payments.Domain/ ./FIAP.MicroService.Payments.Domain/
-COPY FIAP.MicroService.Payments.Data/ ./FIAP.MicroService.Payments.Data/
+COPY src .
 
 # Build da aplicação
 WORKDIR /src/FIAP.MicroService.Payments
-RUN dotnet build -c Release -o /app/build
+RUN dotnet build FIAP.MicroService.Payments.API.csproj -c Release -o /app/build
 
 # -----------------------------------------------------------------------------
 # Stage 2: Publish
@@ -37,21 +41,7 @@ FROM build AS publish
 RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 
 # -----------------------------------------------------------------------------
-# Stage 3: DataDog Tracer
-# -----------------------------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS datadog-installer
-
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && TRACER_VERSION=$(curl -s https://api.github.com/repos/DataDog/dd-trace-dotnet/releases/latest | grep tag_name | cut -d '"' -f 4 | cut -c2-) \
-    && curl -LO https://github.com/DataDog/dd-trace-dotnet/releases/download/v${TRACER_VERSION}/datadog-dotnet-apm_${TRACER_VERSION}_amd64.deb \
-    && dpkg -i ./datadog-dotnet-apm_${TRACER_VERSION}_amd64.deb \
-    && rm ./datadog-dotnet-apm_${TRACER_VERSION}_amd64.deb \
-    && apt-get purge -y curl \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# -----------------------------------------------------------------------------
-# Stage 4: Runtime (Imagem Final)
+# Stage 3: Runtime (Imagem Final)
 # -----------------------------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 
@@ -59,19 +49,8 @@ LABEL maintainer="Grupo 118 - FIAP Tech Challenge" \
       version="4.0" \
       description="FCG Payments API - Microsserviço de Pagamentos"
 
-# Instalar dependências necessárias para DataDog em Alpine
+# Instalar dependências necessárias em Alpine
 RUN apk add --no-cache icu-libs libc6-compat libgcc libstdc++
-
-# Copiar DataDog tracer
-COPY --from=datadog-installer /opt/datadog /opt/datadog
-COPY --from=datadog-installer /var/log/datadog /var/log/datadog
-
-# Configurar variáveis de ambiente do DataDog
-ENV CORECLR_ENABLE_PROFILING=1 \
-    CORECLR_PROFILER={846F5F1C-F9AE-4B07-969E-05C26BC060D8} \
-    CORECLR_PROFILER_PATH=/opt/datadog/Datadog.Trace.ClrProfiler.Native.so \
-    DD_DOTNET_TRACER_HOME=/opt/datadog \
-    DD_INTEGRATIONS=/opt/datadog/integrations.json
 
 # Criar usuário non-root
 RUN addgroup -g 1000 appgroup && \
@@ -83,7 +62,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Ajustar permissões
-RUN chown -R appuser:appgroup /app /var/log/datadog
 
 USER appuser
 

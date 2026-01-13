@@ -14,6 +14,9 @@ public class UserApiService(ILogger<UserApiService> logger, HttpClient httpClien
 
     public async Task<UserInfo?> GetById(Guid userId)
     {
+        var baseUrl = httpClient.BaseAddress;
+
+
         logger.LogInformation("Getting user '{UserId}' data", userId);
 
         // var response = await httpClient.GetAsync($"/users/{userId}");

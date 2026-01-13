@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-config
+  namespace: fcg-payments
+  labels:
+    app: payments
+data:
+
+  ASPNETCORE_ENVIRONMENT: "Production"
+
+  ## GameApiSettings
+  GameApiSettings__BaseUrl: "http://games.fcg-games.svc.cluster.local"
+  GameApiSettings__EndpointFormat: "/api/games/{0}"
+  
+  ## UserApiSettings
+  UserApiSettings__BaseUrl: "http://users.fcg-users.svc.cluster.local"
+  UserApiSettings__EndpointFormat: "/users/{0}"
+  
+  ## ServiceBusSettings
+  ServiceBusSettings__Topic: "payment-confirmed"
+
+  #Logging
+  Logging__LogLevel__Default: "Information"
+  Logging__LogLevel__Microsoft.AspNetCore: "Warning"
+  

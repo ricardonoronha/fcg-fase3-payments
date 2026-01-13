@@ -7,6 +7,7 @@ using FIAP.MicroService.Payments.Domain.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,37 +70,39 @@ builder.Services.AddHttpClient<IUserApiService, UserApiService>((sp, client) => 
     client.BaseAddress = new Uri(settings.BaseUrl);
 });
 
+builder.Services.AddHealthChecks();
 
-
+builder.Services.AddSingleton(sp =>
+{
+    var cs = sp.GetRequiredService<IConfiguration>().GetConnectionString("RabbitMq")!;
+    
+    return new ConnectionFactory
+    {
+        Uri = new Uri(cs),
+        ConsumerDispatchConcurrency = 1
+    };
+});
 
 var app = builder.Build();
 
 app.UseForwardedHeaders();
 
-// aplica X-Forwarded-Prefix como PathBase
-app.Use(async (ctx, next) =>
-{
-    if (ctx.Request.Headers.TryGetValue("X-Forwarded-Prefix", out var prefix) &&
-        !string.IsNullOrWhiteSpace(prefix))
-    {
-        var calculatedPrefix = prefix.ToString().Split(',', 2)[0].Trim();
-        if (!calculatedPrefix.StartsWith("/")) calculatedPrefix = "/" + calculatedPrefix;
-        ctx.Request.PathBase = calculatedPrefix.TrimEnd('/');
-    }
-    await next();
-});
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHealthChecks("/health");
+
+app.MapGet("/debug/alloc/{mb:int}", (int mb) =>
+{
+    var bytes = new byte[mb * 1024 * 1024];
+    GC.KeepAlive(bytes);
+    return Results.Ok(new { allocatedMb = mb });
+});
+
 
 app.Run();
